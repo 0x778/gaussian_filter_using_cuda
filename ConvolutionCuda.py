@@ -21,7 +21,7 @@ d_kernel = cuda.to_device(kernel)
 @cuda.jit
 def convolve(result, mask , image):
     i,j = cuda.grid(2)
-    image_rows , image_cols = image_shape
+    image_rows , image_cols = image.shape
     if(i >= image_rows) or (j >= image_cols):
         return
     
@@ -39,7 +39,7 @@ def convolve(result, mask , image):
 
 from PIL import Image , ImageOps
 
-image = np.asarray(ImageOps.grayscale(Image.open("image.jpg")))
+image = np.asarray(ImageOps.grayscale(Image.open("lap.jpg")))
 
 d_image = cuda.to_device(image)
 
@@ -48,4 +48,19 @@ d_result = cuda.device_array_like(image)
 gaussian_gpu[(1,), (kernel_size,kernel_size)](sigma,kernel_size,d_kernel)
 
 blockdim = (32,32)
-griddim(image)
+griddim = (image.shape[0] // blockdim[0] + 1 , image.shape[1] // blockdim[1] + 1)
+
+import time
+start = time.process_time()
+convolve[griddim,blockdim](d_result,d_kernel,d_image)
+print(time.process_time()  - start)
+result = d_result.copy_to_host()
+
+import matplotlib.pyplot as plt
+plt.figure()
+plt.imshow(image,cmap='gray')
+plt.title("Before convolution")
+plt.figure()
+plt.imshow(result,cmap='gray')
+plt.title("After Convolution")
+plt.show()
